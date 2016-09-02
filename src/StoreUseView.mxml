@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:mx="http://www.adobe.com/2006/mxml"
+		   xmlns="*"
+		   creationComplete="init()" >
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.controls.listClasses.ListBaseContentHolder;
+			import mx.controls.listClasses.ListRowInfo;
+			import mx.events.*;
+			import mx.managers.PopUpManager;PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			[Bindable] protected var collectionData:XMLListCollection;
+			[Bindable] protected var selectedLocation:String;
+			[Bindable] public var location_id:Number;
+			
+			protected function init():void {
+				
+				sessionRequest.send();	
+				
+			}
+			
+			protected function dataRequest_result(evt:ResultEvent):void {
+				
+				var items:XML = XML(evt.result);
+				var xmlList:XMLList = XML(evt.result).item;				
+				collectionData = new XMLListCollection(xmlList);
+				
+			}
+			
+			private function dg_clickHandler(e:MouseEvent):void {
+				
+				var win:StoreUseForm = PopUpManager.createPopUp(this, StoreUseForm, true) as StoreUseForm;
+				win.location_id = location_id;
+				win.addEventListener("form_close", closeFormHandler);
+				PopUpManager.centerPopUp(win);
+								
+			}
+			
+			protected function closeFormHandler(evt:Event):void {
+				sessionRequest.send();
+				dataRequest.send();
+			}
+			
+			protected function sessionRequest_resultHandler(event:ResultEvent):void {
+				
+				var xmlData:XML = XML(sessionRequest.lastResult);
+				
+				if (xmlData.session.accessLevel > 10){
+					locationCombo.visible = true;
+					locationCombo.enabled = true;
+					sent.visible = true;
+					substituted.visible = true;
+				}
+				
+				if (xmlData.session.accessLevel == 30){
+					delete_col.visible = false;
+				}
+				
+				if (xmlData.session.accessLevel > 30){
+					approved.visible = true;
+				}
+
+				if(!location_id) {
+					location_id = xmlData.session.location_id;
+					locationRequest.send();
+				}
+				
+				dataRequest.send();
+				
+			}
+			
+			
+			protected function locationCombo_changeHandler(event:ListEvent):void {
+				
+				location_id = Number(locationCombo.selectedItem);
+				dataRequest.send();
+				
+			}
+						
+			public function approve(item_id:int, value:Boolean):void {
+				var baseUrl:String = approveRequest.url;
+				approveRequest.url = approveRequest.url + item_id + "/" + value;
+				approveRequest.send();
+				approveRequest.url = baseUrl;
+			}
+
+			public function send(item_id:int, value:Boolean):void {
+				var baseUrl:String = sendRequest.url;
+				sendRequest.url = sendRequest.url + item_id + "/" + value;
+				sendRequest.send();
+				sendRequest.url = baseUrl;
+			}
+
+			public function substitute(item_id:int, value:Boolean):void {
+				var baseUrl:String = subRequest.url;
+				subRequest.url = subRequest.url + item_id + "/" + value;
+				subRequest.send();
+				subRequest.url = baseUrl;
+			}
+
+			public function delete_item(item_id:int):void {
+				var baseUrl:String = deleteRequest.url;
+				deleteRequest.url = deleteRequest.url + item_id;
+				deleteRequest.send();
+				deleteRequest.url = baseUrl;
+			}
+
+			protected function request_resultHandler(event:ResultEvent):void {
+				dataRequest.send();
+			}
+			
+			protected function approvedLabelFunction(item:Object, column:DataGridColumn):String {
+				
+				var approveString:String = '';
+				
+				//Alert.show("\n\n\n\n"+ approveString);
+				
+				switch (String(item[column.dataField])){
+
+					case '1':
+						approveString = 'Approved';
+						break;
+					
+					case '0':
+						approveString = 'Not Approved';
+						break;
+					
+					default: 
+						break;
+
+				}
+				
+				return approveString;
+			}
+			
+			protected function sentLabelFunction(item:Object, column:DataGridColumn):String {
+				return (item[column.dataField] == 1) ? 'Yes' : '';
+			}
+
+			protected function subLabelFunction(item:Object, column:DataGridColumn):String {
+				return (item[column.dataField] == 1) ? 'Subbed' : '';
+			}
+
+		]]>
+	</mx:Script>
+	<mx:HTTPService 
+		id="dataRequest" 
+		url="/index.php/store_use/get_items/{location_id}/" 
+		useProxy="false" 
+		method="POST" 
+		showBusyCursor="true"
+		result="dataRequest_result(event)" 
+		resultFormat="e4x"/>
+	<mx:HTTPService 
+		id="sessionRequest" 
+		url="/index.php/intranet_utils/sessionXML/" 
+		useProxy="false" 
+		method="GET" 
+		showBusyCursor="true"
+		result="sessionRequest_resultHandler(event)"
+		resultFormat="e4x"
+		/>
+	<mx:HTTPService 
+		id="locationRequest" 
+		url="/index.php/intranet_utils/locationsXML/" 
+		useProxy="false" 
+		method="GET" 
+		resultFormat="e4x"
+		/>
+	<mx:HTTPService id="approveRequest" url="/index.php/store_use/approve/" useProxy="false" method="GET" resultFormat="text" result="request_resultHandler(event)"/>
+	<mx:HTTPService id="sendRequest" url="/index.php/store_use/send/" useProxy="false" method="GET" resultFormat="text" result="request_resultHandler(event)"/>
+	<mx:HTTPService id="subRequest" url="/index.php/store_use/substitute/" useProxy="false" method="GET" resultFormat="text" result="request_resultHandler(event)"/>
+	<mx:HTTPService id="deleteRequest" url="/index.php/store_use/delete/" useProxy="false" method="GET" resultFormat="text" result="request_resultHandler(event)"/>
+	
+	<mx:HBox height="60" >
+		<mx:Label fontSize="40" fontWeight="bold" text="Store Use"/>
+		<mx:Text textAlign="left">
+			<mx:text><![CDATA[]]></mx:text>
+		</mx:Text>
+	</mx:HBox>
+	<mx:VBox id="myVbox" width="100%" height="100%" >
+		<mx:HBox>
+			<mx:Button label="New Item" click="dg_clickHandler(event)" />			
+			<mx:ComboBox id="locationCombo" width="200" rowCount="10"
+						 dataProvider="{XML(locationRequest.lastResult).location}"
+						 visible="false"
+						 labelField="@location_name"
+						 change="locationCombo_changeHandler(event)" />
+		</mx:HBox>
+		
+		
+		<mx:DataGrid id="dg" width="100%" height="100%" sortableColumns="false" 
+					 dataProvider="{collectionData}" >
+			<mx:columns>
+				<mx:DataGridColumn dataField="item_id" visible="false" />
+				<mx:DataGridColumn dataField="fk_location_id" visible="false" />
+				<mx:DataGridColumn dataField="short_name" headerText="Category" width="60" />
+				<mx:DataGridColumn dataField="employee_name" headerText="Employee"  />
+				<mx:DataGridColumn dataField="part_num" headerText="Part Number" />
+				<mx:DataGridColumn dataField="item_desc" headerText="Description" />
+				<mx:DataGridColumn dataField="qty" headerText="Qty" width="30" />
+				<mx:DataGridColumn dataField="notes" headerText="Notes"  />
+				<mx:DataGridColumn dataField="approved" headerText="Approved" labelFunction="approvedLabelFunction" width="90" />
+				<mx:DataGridColumn id="approved" headerText="Approve" width="90" visible="false" resizable="false" >
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Script>
+									<![CDATA[
+										protected function checkbox1_changeHandler(event:Event, value:Boolean):void {
+											var item_id:Number = Number(outerDocument.dg.selectedItem.item_id);
+											outerDocument.approve(outerDocument.dg.selectedItem.item_id, value);
+										}
+									]]>
+								</mx:Script>
+								<mx:Button click="checkbox1_changeHandler(event, true)" label="Yes" width="40" />
+								<mx:Button click="checkbox1_changeHandler(event, false)" label="No" width="40" />
+							</mx:HBox>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn dataField="substituted" headerText="Sub" labelFunction="subLabelFunction" width="60" />
+				<mx:DataGridColumn id="substituted" headerText="Sub" visible="false" width="60" resizable="false">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Script>
+									<![CDATA[
+										import mx.events.FlexEvent;
+										protected function button_Handler(event:Event):void {
+											var item_id:Number = Number(outerDocument.dg.selectedItem.item_id);
+											var value:Boolean = (data.substituted == 1) ? false : true;
+											outerDocument.substitute(outerDocument.dg.selectedItem.item_id, value);
+										}										
+									]]>
+								</mx:Script>
+								<mx:Button id="button" click="button_Handler(event)" label="Sub" width="50" visible="{(data.approved == 1)?true:false}" />							
+							</mx:HBox>							
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn dataField="sent" headerText="Sent" labelFunction="sentLabelFunction" width="60" />			
+				<mx:DataGridColumn id="sent" headerText="Send" visible="false" width="60" resizable="false">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Script>
+									<![CDATA[
+										import mx.events.FlexEvent;
+										protected function button_Handler(event:Event):void {
+											var item_id:Number = Number(outerDocument.dg.selectedItem.item_id);
+											var value:Boolean = (data.sent == 1) ? false : true;
+											outerDocument.send(outerDocument.dg.selectedItem.item_id, value);
+										}										
+									]]>
+								</mx:Script>
+								<mx:Button id="button" click="button_Handler(event)" label="Send" width="50" visible="{(data.approved == 1)?true:false}" />							
+							</mx:HBox>							
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn id="delete_col" headerText="Delete" width="90" resizable="false">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:HBox horizontalAlign="center">
+								<mx:Script>
+									<![CDATA[
+										protected function checkbox1_changeHandler(event:Event):void {
+											var item_id:Number = Number(outerDocument.dg.selectedItem.item_id);
+											outerDocument.delete_item(outerDocument.dg.selectedItem.item_id);
+										}
+									]]>
+								</mx:Script>
+								<mx:Button click="checkbox1_changeHandler(event)" label="Delete" width="80" />							
+							</mx:HBox>
+							
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+</mx:Module>

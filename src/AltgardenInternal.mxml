@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   creationComplete="init()"
+			   resize="module_loadHandler(event)">
+	<s:layout>
+		<s:VerticalLayout horizontalAlign="left" paddingBottom="20" paddingLeft="20"
+						  paddingTop="20"/>
+	</s:layout>
+	<fx:Style source="AltgardenInternal.css"/>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ModuleEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;PopUpManager;
+			import mx.controls.Alert;
+			
+			//protected var moduleLoader:ModuleLoader;
+			[Bindable] protected var username:String;
+			
+			protected function init():void {
+				sessionRequest.send();
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent, className:String):void {
+				
+				sessionRequest.send();
+				loadModule(className);
+				
+			}
+			
+			protected function loadModule(className:String):void {
+				
+				moduleLoader.url = className;
+				moduleLoader.loadModule();
+				resizeThings();
+				
+			}
+
+			protected function logoutButton_clickHandler(event:MouseEvent):void{
+			
+				navigateToURL(new URLRequest('../index.php/login/logout'),'_self');
+				
+			}
+			
+			protected function module_loadHandler(event:Event):void{
+				
+				resizeThings();
+				
+			}
+			
+			protected function resizeThings():void{
+			
+				moduleLoader.child.height = stage.height - 80;
+				moduleLoader.child.width = stage.width - 80;
+				
+			}
+			
+			protected function sessionRequest_resultHandler(event:ResultEvent):void {
+				
+				var xmlData:XML = XML(sessionRequest.lastResult);
+				var isLoggedIn:Boolean = Boolean(xmlData.session.is_logged_in.toString());
+				username = xmlData.session.username;
+				
+				if ( !isLoggedIn ) {
+					
+					navigateToURL(new URLRequest('/'),'_self')
+					
+				}
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<mx:HTTPService 
+			id="sessionRequest" 
+			url="/index.php/intranet_utils/sessionXML/" 
+			useProxy="false" 
+			method="GET" 
+			result="sessionRequest_resultHandler(event)"
+			resultFormat="e4x"
+			/>
+	</fx:Declarations>
+	<s:controlBarContent>
+		<s:HGroup id="ctrlButtons">
+			<s:Button label="Special Orders" click="button1_clickHandler(event, 'SpecialOrdersView.swf')" />
+			<s:Button label="Store Use" click="button1_clickHandler(event, 'StoreUseView.swf')" />
+			<s:Button click="logoutButton_clickHandler(event)" label="Log-out" />		
+		</s:HGroup>
+		<s:Label width="75%" color="#333333" fontSize="20" fontWeight="bold"
+				 text="welcome, {username}" textAlign="right"/>			
+	</s:controlBarContent>
+	<mx:ModuleLoader id="moduleLoader" width="100%" borderVisible="false"
+					 ready="module_loadHandler(event)"
+					 resize="module_loadHandler(event)"/>
+</s:Application>

@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+				xmlns:cp="controls.*"
+				width="744" height="470" close="titleWindow_close(event)" creationComplete="init()"
+				horizontalAlign="center" layout="vertical" showCloseButton="true"
+				title="More information">
+
+	<mx:Script>
+		<![CDATA[
+			import com.adobe.serialization.jason.JASON;
+			import mx.validators.Validator;
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.*;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+
+			[Bindable] private var validatorArr:Array;
+			[Bindable] protected var selectedVendor:String;
+			[Bindable] protected var selectedCategory:String;
+			[Bindable] protected var selectedStatus:String;
+			[Bindable] protected var userId:Number;
+			[Bindable] protected var formCreatorUserId:Number;
+			[Bindable] protected var location_id:Number;
+			[Bindable] protected var formLocationId:Number;
+			[Bindable] public var order_id:Number;
+			public var form_state:String;
+			protected var accessLevel:Number = 0;
+			
+			protected function init():void{
+				
+				validatorArr = new Array();
+				validatorArr.push(emlpoyee_name_stringValidator);
+				validatorArr.push(part_num_stringValidator);
+				validatorArr.push(item_desc_stringValidator);
+				validatorArr.push(customer_name_stringValidator);
+				validatorArr.push(customer_contact_stringValidator);
+				validatorArr.push(qty_numberValidator);
+				validatorArr.push(customer_deposit_numberValidator);
+				validatorArr.push(categoryCombo_numberValidator);
+				validatorArr.push(vendorCombo_numberValidator);
+				
+				// get the combobox options and user session data
+				dataRequest.send();
+				
+				// if you are managing an order  get the order data
+				if(order_id){
+					manageRequest.send();
+				}
+				
+			}
+			
+			protected function parseNotes(notes:Array):String {
+				var notes_string:String = "";
+				for each( var note:Object in notes ){
+					notes_string += note.modified.substr(5,5) + " " +
+						"<b>" + note.user_name + ":</b> " +
+						note.notes +"\n\n";
+				}
+				return notes_string.toString();
+			}
+			
+			protected function close():void {
+				var event:Event = new Event("form_close",true,true);
+				dispatchEvent(event);
+				PopUpManager.removePopUp(this);
+			}
+
+			protected function titleWindow_close(evt:CloseEvent):void {
+				close();
+			}
+			
+			protected function dataRequest_resultHandler(event:ResultEvent):void {
+				var xmlData:XML = XML(dataRequest.lastResult);
+				
+				var isLoggedIn:Boolean = 	xmlData.session.isLoggedIn;
+				accessLevel =	 			Number(xmlData.session.accessLevel);
+				userId = 					Number(xmlData.session.user_id);
+				location_id = 				Number(xmlData.session.location_id);
+
+				// disable certain form fields depending on the form state and user access level					
+				switch (form_state){
+					case "manage":
+						if(accessLevel < 30){
+							var diasbleItems:Array = managersOnly.getChildren();
+							for each ( var ui:UIComponent in diasbleItems){
+								ui.enabled = false;
+								ui.setStyle("disabledOverlayAlpha", .0);
+							}
+						}
+						break;
+					
+					case "new": default:
+						statusCombo.selectedIndex = 0;
+						statusCombo.enabled = false;
+						formCreatorUserId = userId;
+						formLocationId = location_id;
+						break;
+				}
+			}
+							
+			protected function manageRequest_resultHandler(event:ResultEvent):void {
+				// get the raw JSON data and cast to String
+				var rawData:String = String(event.result);
+				var manage:* = JASON.decode(rawData);
+				
+				// set variables
+				formLocationId = 			manage.queryOrder.fk_location;
+				formCreatorUserId =			manage.queryOrder.fk_user_id_creator;
+				order_id = 					manage.queryOrder.order_id;
+				
+				// set the text in the form
+				item_desc.text = 			manage.queryOrder.item_desc;
+				customer_name.text = 		manage.queryOrder.customer_name;
+				customer_deposit.value = 	manage.queryOrder.customer_deposit;
+				customer_contact.text = 	manage.queryOrder.customer_contact;
+				emlpoyee_name.text = 		manage.queryOrder.emlpoyee_name;
+				part_num.text = 			manage.queryOrder.part_num;
+				item_desc.text =	 		manage.queryOrder.item_desc;
+				qty.value =					manage.queryOrder.qty;
+				
+				selectedVendor = 			manage.queryOrder.fk_vendor_id;
+				selectedCategory =  		manage.queryOrder.fk_category_id;
+				selectedStatus =  			manage.queryOrder.fk_status_id;
+				
+				show_notes.htmlText =		parseNotes(manage.queryNotes);
+				
+				//only enable the customer pickup checkbox if the status is sent to store
+				//the status id in the DB for "sent to store" is 5
+				cust_pickup.enabled = (selectedStatus == '5') ? true : false;
+			}
+
+			protected function form_cancel_clickHandler(event:MouseEvent):void {
+				close();
+			}
+			
+			protected function form_submit_clickHandler(event:MouseEvent):void {
+				 
+				if(cust_pickup.selected){
+					//Status ID for "picked-up" is 8 in the database
+					//update the request to reflect this
+					srv.request.fk_status_id = "8";
+				}
+
+				var validatorErrorArray:Array = Validator.validateAll(validatorArr);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+	
+					srv.send();
+					
+				} 
+				/*else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": " + err.message);
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}				
+				srv.send();*/
+			}
+			
+			protected function checkSubmitResult(event:ResultEvent):void {
+				// show validation or submit results
+				close();
+			}
+
+			protected function statusComboSelect():int {
+				var comboIndex:int = DataUtils.getBoundIndex(XMLList(statusCombo.dataProvider), 'id', selectedStatus);
+				if ( comboIndex == -1) {
+					comboIndex = 0;
+				}
+				return comboIndex;
+			}
+
+			
+		]]>
+	</mx:Script>
+	<mx:Metadata>
+		[Event(name="form_close", type="flash.events.Event")]
+	</mx:Metadata>
+
+	<mx:HTTPService id="srv" url="/index.php/special_needs/process_form/" method="POST" result="checkSubmitResult(event)" resultFormat="text">
+		<mx:request>
+			<order_id>{order_id}</order_id>
+			<item_desc>{item_desc.text}</item_desc>
+			<customer_name>{customer_name.text}</customer_name>
+			<customer_deposit>{customer_deposit.value}</customer_deposit>
+			<customer_contact>{customer_contact.text}</customer_contact>
+			<emlpoyee_name>{emlpoyee_name.text}</emlpoyee_name>
+			<part_num>{part_num.text}</part_num>
+			<qty>{qty.value}</qty>
+			<fk_category_id>{categoryCombo.selectedItem}</fk_category_id>
+			<fk_vendor_id>{vendorCombo.selectedItem}</fk_vendor_id>
+			<fk_status_id>{statusCombo.selectedItem}</fk_status_id>
+			<notes>{notes.text}</notes>
+			<formUser>{userId.toString()}</formUser>				
+			<fk_user_id_creator>{formCreatorUserId.toString()}</fk_user_id_creator>
+			<fk_location>{formLocationId.toString()}</fk_location>
+		</mx:request>
+	</mx:HTTPService>	
+	<mx:HTTPService 
+		id="dataRequest" 
+		url="/index.php/special_needs/optionsXML" 
+		useProxy="false" 
+		method="GET"
+		resultFormat="e4x"
+		result="dataRequest_resultHandler(event)"
+		/>
+	<mx:HTTPService 
+		id="manageRequest" 
+		url="/index.php/special_needs/manage_order/{order_id}" useProxy="false" 
+		method="GET"
+		resultFormat="text" result="manageRequest_resultHandler(event)"
+		>
+		<mx:request xmlns="">
+			<getManager>"true"</getManager>
+		</mx:request>
+	</mx:HTTPService>
+	
+	<mx:StringValidator id="emlpoyee_name_stringValidator" source="{emlpoyee_name}" property="text" minLength="1" />
+	<mx:StringValidator id="part_num_stringValidator" source="{part_num}" property="text" minLength="1" />
+	<mx:StringValidator id="item_desc_stringValidator" source="{item_desc}" property="text" minLength="1" />
+	<mx:StringValidator id="customer_name_stringValidator" source="{customer_name}" property="text" minLength="1" />
+	<mx:StringValidator id="customer_contact_stringValidator" source="{customer_contact}" property="text" minLength="1" />
+	<mx:NumberValidator id="qty_numberValidator" source="{qty}" lowerThanMinError="This field is required." property="value" minValue="0" />
+	<mx:NumberValidator id="customer_deposit_numberValidator" source="{customer_deposit}" lowerThanMinError="This field is required." property="value" minValue="0" />
+	<mx:NumberValidator id="categoryCombo_numberValidator" source="{categoryCombo}" lowerThanMinError="This field is required." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="vendorCombo_numberValidator" source="{vendorCombo}" lowerThanMinError="This field is required." property="selectedIndex" minValue="0" />
+	
+	<cp:MultiColumnForm left="10" top="10">		
+		<cp:FormColumn width="33%" id="managersOnly">
+			<mx:FormHeading label="Details"/>
+			<mx:FormItem label="Status" required="true">
+				<mx:ComboBox id="statusCombo" width="200" rowCount="10"
+							 dataProvider="{XML(dataRequest.lastResult).statuses.status}"
+							 enabled="true" labelField="@name"
+							 selectedIndex="{DataUtils.getBoundIndex(XMLList(statusCombo.dataProvider), 'id', selectedStatus)}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Emlpoyee Name" required="true">
+				<mx:TextInput id="emlpoyee_name" editable="true" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Part Number" required="true">
+				<mx:TextInput id="part_num" editable="true" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Item Description" required="true">
+				<mx:TextArea id="item_desc" editable="true" height="40" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Quantity" required="true">
+				<mx:NumericStepper id="qty" x="184" y="3" minimum="1" maximum="10000" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Customer Name" required="true">
+				<mx:TextInput id="customer_name" editable="true" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Customer Contact" required="true">
+				<mx:TextArea id="customer_contact" editable="true" height="40" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Deposit" required="true">
+				<mx:NumericStepper id="customer_deposit" x="184" y="3" maximum="1000" stepSize=".01"
+								   value="0.00" width="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Category" required="true">
+				<mx:ComboBox 
+					id="categoryCombo" 
+					dataProvider="{XML(dataRequest.lastResult).categories.category}" 
+					selectedIndex ="{DataUtils.getBoundIndex(XMLList(categoryCombo.dataProvider), 'id', selectedCategory )}" 
+					prompt="Please Select" 
+					labelField="@name" 
+					width="200"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Vendor" required="true">
+				<mx:ComboBox 
+					id="vendorCombo" 
+					dataProvider="{XML(dataRequest.lastResult).vendors.vendor}" 
+					selectedIndex ="{DataUtils.getBoundIndex(XMLList(vendorCombo.dataProvider), 'id', selectedVendor )}" 
+					prompt="Please Select" 
+					labelField="@name"
+					width="200"></mx:ComboBox>
+			</mx:FormItem>
+		</cp:FormColumn>
+		<cp:FormColumn>
+			<mx:FormHeading label="Notes"/>
+			<mx:FormItem>
+				<mx:TextArea id="notes" editable="true" height="40" width="300"/>
+			</mx:FormItem>
+			<mx:FormItem>
+				<mx:TextArea id="show_notes" width="300" height="275" borderStyle="none"
+							 editable="false"/>
+			</mx:FormItem>
+		</cp:FormColumn>		
+		
+	</cp:MultiColumnForm>
+	<mx:HBox x="40" width="667" height="27" horizontalAlign="right">
+		<mx:CheckBox id="cust_pickup" label="Picked-up by Customer" enabled="false"/>
+		<mx:Button label="Cancel" click="form_cancel_clickHandler(event)"/>
+		<mx:Button label="Submit" click="form_submit_clickHandler(event)"/>
+	</mx:HBox>
+
+</mx:TitleWindow>
+

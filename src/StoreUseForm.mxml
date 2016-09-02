@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+				width="400" height="300" close="titleWindow_close(event)" creationComplete="init()"
+				horizontalAlign="center" layout="vertical" showCloseButton="true"
+				title="Store Use">
+
+	<mx:Script>
+		<![CDATA[
+
+			import mx.validators.Validator;
+			import mx.validators.ZipCodeValidatorDomainType;
+			import mx.controls.Alert;
+			import mx.events.*;
+			import mx.managers.PopUpManager;PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			[Bindable] protected var userId:Number;
+			//[Bindable] protected var formCreatorUserId:Number;
+			[Bindable] protected var selectedCategory:String;
+			[Bindable] public var location_id:Number;
+			[Bindable] private var validatorArr:Array;
+			public var form_state:String;
+			protected var accessLevel:Number = 0;
+			
+			protected function init():void{
+				
+				validatorArr = new Array();
+				validatorArr.push(employee_name_stringValidator);
+				validatorArr.push(part_num_stringValidator);
+				validatorArr.push(item_desc_stringValidator);
+				validatorArr.push(qty_numberValidator);
+				validatorArr.push(categoryCombo_numberValidator);
+
+				dataRequest.send();
+				
+			}
+						
+			protected function close():void {
+			
+				var event:Event = new Event("form_close",true,true);
+				dispatchEvent(event);
+				PopUpManager.removePopUp(this);
+			
+			}
+
+			protected function titleWindow_close(evt:CloseEvent):void {
+			
+				close();
+			
+			}
+			
+							
+			protected function form_cancel_clickHandler(event:MouseEvent):void {
+			
+				close();
+			
+			}
+			
+			protected function checkSubmitResult(event:ResultEvent):void {
+				
+				close();
+				
+			}
+			
+			protected function form_submit_clickHandler(event:MouseEvent):void {
+								
+				var validatorErrorArray:Array = Validator.validateAll(validatorArr);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					
+					srv.send();
+					
+				} 
+				/*else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": " + err.message);
+					}
+					//Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}*/			
+			
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Metadata>
+		[Event(name="form_close", type="flash.events.Event")]
+	</mx:Metadata>
+
+	<mx:HTTPService id="srv" url="/index.php/store_use/create/" method="POST" result="checkSubmitResult(event)" resultFormat="text">
+		<mx:request>
+			<location_id>{location_id}</location_id>
+			<item_desc>{item_desc.text}</item_desc>
+			<employee_name>{employee_name.text}</employee_name>
+			<part_num>{part_num.text}</part_num>
+			<qty>{qty.value}</qty>
+			<formUser>{userId.toString()}</formUser>				
+			<!--<fk_user_id_creator>{formCreatorUserId.toString()}</fk_user_id_creator>-->
+			<category>{categoryCombo.selectedItem}</category>
+			<notes>{notes.text}</notes>
+		</mx:request>
+	</mx:HTTPService>	
+	<mx:HTTPService 
+		id="dataRequest" 
+		url="/index.php/store_use/optionsXML" 
+		useProxy="false" 
+		method="GET"
+		resultFormat="e4x"
+		/>
+	
+	<mx:StringValidator id="employee_name_stringValidator" source="{employee_name}" property="text" minLength="1" />
+	<mx:StringValidator id="part_num_stringValidator" source="{part_num}" property="text" minLength="1" />
+	<mx:StringValidator id="item_desc_stringValidator" source="{item_desc}" property="text" minLength="1" />
+	<mx:NumberValidator id="qty_numberValidator" source="{qty}" lowerThanMinError="This field is required." property="value" minValue="0" />
+	<mx:NumberValidator id="categoryCombo_numberValidator" source="{categoryCombo}" lowerThanMinError="This field is required." property="selectedIndex" minValue="0" />
+
+	<mx:Form >
+		<mx:FormItem label="Category" required="true">
+			<mx:ComboBox 
+				id="categoryCombo" 
+				dataProvider="{XML(dataRequest.lastResult).categories.category}" 
+				selectedIndex ="{DataUtils.getBoundIndex(XMLList(categoryCombo.dataProvider), 'id', selectedCategory )}" 
+				prompt="Please Select" 
+				labelField="@name" 
+				width="200"></mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="Employee Name" required="true">
+			<mx:TextInput id="employee_name" editable="true" width="200"/>
+		</mx:FormItem>
+		<mx:FormItem label="Part Number" required="true">
+			<mx:TextInput id="part_num" editable="true" width="200"/>
+		</mx:FormItem>
+		<mx:FormItem label="Item Description" required="true">
+			<mx:TextArea id="item_desc" editable="true" height="40" width="200"/>
+		</mx:FormItem>
+		<mx:FormItem label="Quantity" required="true">
+			<mx:NumericStepper id="qty" x="184" y="3" minimum="1" maximum="10000" width="200"/>
+		</mx:FormItem>
+		<mx:FormItem label="Notes">
+			<mx:TextArea id="notes" editable="true" height="40" width="200"/>
+		</mx:FormItem>
+		<mx:FormItem>
+			<mx:HBox verticalGap="20">
+				<mx:Button label="Cancel" click="form_cancel_clickHandler(event)"/>
+				<mx:Button label="Submit" click="form_submit_clickHandler(event)"/>
+			</mx:HBox>			
+		</mx:FormItem>
+	</mx:Form>
+	
+</mx:TitleWindow>
+

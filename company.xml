@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<company>
+  <contact>
+    <first_name>Warehouse</first_name>
+    <last_name>Location</last_name>
+    <email></email>
+    <phone>815-301-4940</phone>
+    <ext></ext>
+    <fax>815-301-4947</fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Warehouse (1)</location_name>
+  </contact>
+  <contact>
+    <first_name>Crystal Lake</first_name>
+    <last_name>Location</last_name>
+    <email>crystallake@brewandgrow.com</email>
+    <phone>815-301-4950</phone>
+    <ext></ext>
+    <fax></fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Crystal Lake (2)</location_name>
+  </contact>
+  <contact>
+    <first_name>Rockford</first_name>
+    <last_name>Location</last_name>
+    <email>rockford@brewandgrow.com</email>
+    <phone>815-874-5700</phone>
+    <ext></ext>
+    <fax>815-874-5701</fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Rockford (4)</location_name>
+  </contact>
+  <contact>
+    <first_name>Madison</first_name>
+    <last_name>Location</last_name>
+    <email>madison@brewandgrow.com</email>
+    <phone>608-226-8910</phone>
+    <ext></ext>
+    <fax>608-226-8915</fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Madison (5)</location_name>
+  </contact>
+  <contact>
+    <first_name>Bolingbrook</first_name>
+    <last_name>Location</last_name>
+    <email>bolingbrook@brewandgrow.com</email>
+    <phone>630-771-1410</phone>
+    <ext></ext>
+    <fax>630-771-1404</fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Bolingbrook (7)</location_name>
+  </contact>
+  <contact>
+    <first_name>Morgan</first_name>
+    <last_name>Location</last_name>
+    <email>morgan@brewandgrow.com</email>
+    <phone>312-243-0005</phone>
+    <ext></ext>
+    <fax>312-243-0060</fax>
+    <cell></cell>
+    <notes></notes>
+    <location_name>Morgan (10)</location_name>
+  </contact>
+  
+</company>

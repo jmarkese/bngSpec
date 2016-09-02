@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Module xmlns:mx="http://www.adobe.com/2006/mxml"
+				xmlns="*"
+				creationComplete="init()"
+				>
+	<mx:Script>
+		<![CDATA[
+			
+			import mx.collections.*;
+			import mx.controls.Alert;
+			import mx.events.*;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			protected var defaultSeachField:String = "cat_code";
+			protected var searchFieldName:String = defaultSeachField;
+			[Bindable] protected var sortA:Sort;
+			protected var sortWhatever:SortField;
+			protected var sortByColumn:String = "status_name";
+			protected var sortDesc:Boolean = false;
+			[Bindable] protected var collectionData:XMLListCollection;
+			[Bindable] protected var ordersURL:String = "/index.php/special_needs/ordersXML";
+			[Bindable] protected var completeOrders:Boolean = false;
+			
+			protected function init():void {
+				sessionRequest.send();
+				dataRequest.send();
+				sortA = new Sort();
+			}
+			
+			
+			
+			// Filtering Functions....
+			
+			protected function filter():void {
+				collectionData.filterFunction = filterFirst;
+				collectionData.refresh();
+			}
+			
+			protected function filterReset():void { 
+				collectionData.filterFunction = null;
+				collectionData.refresh();
+			}
+			
+			protected function filterFirst(item:Object):Boolean {
+				return item[searchFieldName].match(new RegExp(searchField.text, 'i'))
+			}
+			
+			protected function search():void {
+				if(searchField.text !='') {
+					filter();
+				} else {
+					filterReset();
+				}
+			}
+
+			protected function sort():void {
+				sortWhatever = new SortField(sortByColumn, false, sortDesc);
+				sortA.fields=[sortWhatever];
+				collectionData.sort=sortA;
+				collectionData.refresh();			
+			}
+			
+			// Event Handlers....
+			
+			protected function datagrid1_changeHandler(event:Event, formState:String = ""):void {
+
+				var win:SpecialOrderForm = PopUpManager.createPopUp(this, SpecialOrderForm, true) as SpecialOrderForm;
+				win.form_state = formState;
+				win.order_id = (formState == "manage") ? dgOrderView.selectedItem.order_id : null;
+				win.addEventListener("form_close", closeFormHandler);
+				PopUpManager.centerPopUp(win);
+			}
+			
+			protected function httpService_result(evt:ResultEvent):void {				
+				var xmlList:XMLList = XML(evt.result).item;				
+				collectionData = new XMLListCollection(xmlList);
+				search();
+				sort();
+			}
+			
+			protected function closeFormHandler(evt:Event):void {
+				sessionRequest.send();
+				dataRequest.send();
+			}
+			
+			protected function eraseText(event:MouseEvent):void {
+				searchField.text ='';
+			}
+			
+			protected function recordColumnSortData(event:DataGridEvent):void {
+				sortByColumn = event.dataField.toString();
+				sortDesc = !sortDesc;
+			}
+						
+			protected function combobox1_changeHandler(event:ListEvent):void {
+				searchFieldName = event.currentTarget.selectedItem.data as String;		
+			}
+			
+			protected function button1_clickHandler(event:MouseEvent):void {
+				searchFieldName = defaultSeachField;
+				combobox1.selectedIndex=0;
+				searchField.text='';
+				search();
+			}
+			
+			protected function sessionRequest_resultHandler(event:ResultEvent):void{
+
+				var xmlData:XML = XML(sessionRequest.lastResult);
+				var isLoggedIn:String = xmlData.isLoggedIn;
+				if (isLoggedIn ==  "false") {
+					navigateToURL(new URLRequest('/'),'_self')
+				}
+				
+			}
+						
+			protected function button3_clickHandler(event:MouseEvent):void {
+				completeOrders = !completeOrders;
+				if (completeOrders)
+					dataRequest.url = ordersURL + "/" + completeOrders;
+				else
+					dataRequest.url = ordersURL;
+				dataRequest.send();
+				completeButton.label = completeOrders ? "Active Orders" : "Complete Orders";
+				completeButton.setStyle("color", completeOrders ? "0xDD0000" : "0x000000");
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:HTTPService 
+		id="dataRequest" 
+		url="{ordersURL}" 
+		useProxy="false" 
+		method="POST" 
+		result="httpService_result(event)"
+		resultFormat="e4x"
+		showBusyCursor="true"
+		/>
+	<mx:HTTPService 
+		id="sessionRequest" 
+		url="/index.php/intranet_utils/sessionXML" 
+		useProxy="false" 
+		method="GET" 
+		result="sessionRequest_resultHandler(event)"
+		resultFormat="e4x"
+		/>
+	<mx:HBox height="60" width="100%" >
+		<mx:Label fontSize="40" fontWeight="bold" text="Special Orders" width="40%" />
+		<mx:Text textAlign="left" selectable="false" width="60%" minWidth="0">
+			<mx:htmlText>
+			<![CDATA[<b>Special Order Policy: </b> Items that we do not stock or that we must order above our normal stock levels cannot be returned. Items that we do not stock require a 100% non-refundable deposit. Items that we need to order above our normal stock levels require a minimum 50% non-refundable deposit.]]>
+			</mx:htmlText>
+		</mx:Text>
+	</mx:HBox>
+	<mx:VBox id="myVbox" width="100%" height="100%" >
+		<mx:HBox >
+			<mx:TextInput id="searchField" width="120" borderColor="#FFFFFF" change="search()"
+						  click="eraseText(event)" color="#323232" contentBackgroundColor="#CCCCCC"
+						  tabEnabled="true" tabIndex="1"/>
+			<mx:ComboBox change="combobox1_changeHandler(event)" id="combobox1" rowCount="{searchFieldArr.length}">
+				<mx:ArrayCollection id="searchFieldArr">
+					<mx:Object data="cat_code" label="Category" />
+					<mx:Object data="status_name" label="Status" />
+					<mx:Object data="created" label="Created" />
+					<mx:Object data="modified" label="Modified" />
+					<mx:Object data="vendor_code" label="Vendor" />        
+					<mx:Object data="part_num" label="Part #" />
+					<mx:Object data="qty" label="Qty" />        
+					<mx:Object data="item_desc" label="Description" />        
+					<mx:Object data="location_name" label="Location" />        
+					<mx:Object data="customer_name" label="Customer" />
+				</mx:ArrayCollection>
+			</mx:ComboBox>
+			<mx:Button tabEnabled="true" tabIndex="15" click="button1_clickHandler(event)" label="Reset" />
+			<mx:Button click="datagrid1_changeHandler(event,'new')" label="New Special Order" />
+			<mx:Button click="button3_clickHandler(event)" label="Complete Orders" id="completeButton"/>
+
+		</mx:HBox>
+		
+	
+	<mx:DataGrid id="dgOrderView" dataProvider="{collectionData}" width="100%" height="100%"
+		change="datagrid1_changeHandler(event,'manage')" headerRelease="recordColumnSortData(event)" y="50" >
+		<mx:columns>
+			<mx:DataGridColumn dataField="order_id" headerText="id" visible="false" />
+			<mx:DataGridColumn dataField="cat_code" headerText="Category" width="72"/>
+			<mx:DataGridColumn dataField="status_name" headerText="Status" width="130"  />
+			<mx:DataGridColumn dataField="created" headerText="Created" width="72"  />
+			<mx:DataGridColumn dataField="modified" headerText="Modified" width="72"  />
+			<mx:DataGridColumn dataField="vendor_code" headerText="Vendor" width="72" />
+			<mx:DataGridColumn dataField="part_num" headerText="Part #"  width="60"/>
+			<mx:DataGridColumn dataField="qty" headerText="Qty"  width="30"/>
+			<mx:DataGridColumn dataField="item_desc" headerText="Description" />
+			<mx:DataGridColumn dataField="location_name" headerText="Location Name"  width="100" />
+			<mx:DataGridColumn dataField="customer_name" headerText="Customer"  width="200" />
+			
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:VBox>
+</mx:Module>

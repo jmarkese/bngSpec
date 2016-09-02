@@ -1,0 +1,80 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}
+</IfModule>
+
+
+#Order Deny,Allow
+	Allow from 192.168.1.
+	Allow from 127.
+
+#morgan network
+	Allow from 74.7.42.120/29
+#waukesha network
+	Allow from 67.52.221.16/29
+#roselle Network
+	Allow from 50.73.125.232/29
+#kedzie Network
+	Allow from 173.161.108.152/29
+#madison Network
+	Allow from 71.13.14.120/29
+#bolingbrook network
+	Allow from 173.167.188.96/29
+#rockford network
+	Allow from 75.145.172.68/30
+#Crystal Lake Comcast 50
+	Allow from 173.167.175.16/28
+#Crystal Lake Comcast 22
+	Allow from 173.167.131.96/29
+#Crystal Lake Comcast T1
+	Allow from 72.16.173.192/29
+
+#morgan1 
+	Allow from 50.76.85.249
+#morgan2 
+	Allow from 50.76.85.250
+#morgan3
+	Allow from 50.76.85.251
+
+
+#waukesha1
+	Allow from 67.52.221.18
+#waukesha2
+	Allow from 67.52.221.19
+
+#roselle1
+	Allow from 50.73.125.234
+#roselle2
+	Allow from 50.73.125.233
+#bolingbrook1
+	Allow from 173.167.188.97
+#bolingbrook2
+	Allow from 173.167.188.98
+
+#chicago1
+	Allow from 173.161.108.154
+#chicago2
+	Allow from 173.161.108.155
+#chicago3
+	Allow from 173.161.108.156
+#chicago4
+	Allow from 208.70.17.116
+
+#madison1 Old Location
+	Allow from 64.198.7.114
+#madison1
+        Allow from 71.13.14.122
+#madison2
+        Allow from 71.13.14.123
+
+#rockford1
+	Allow from 75.145.172.69
+
+#Simple Helix
+        Allow from 173.14.196.222 
+
+# Deny Everyone Else
+	Deny from all
+	#Allow from all
+#
